@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Glass Brick Lights</title>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 15px;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: 26px;
+        }
+
+        #status {
+            margin-bottom: 8px;
+            min-height: 20px;
+            color: #aaa;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .turn-banner {
+            width: 100%;
+            max-width: 420px;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: rgba(255, 170, 0, 0.12);
+            border: 1px solid rgba(255, 170, 0, 0.5);
+            color: #ffd27a;
+            font-size: 13px;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+            transition: all 0.2s ease;
+        }
+
+        .turn-banner.visible {
+            display: block;
+        }
+
+        .turn-banner.ready {
+            background: rgba(40, 200, 110, 0.12);
+            border-color: rgba(40, 200, 110, 0.6);
+            color: #8ef0b3;
+        }
+
+        .countdown-bar {
+            width: 100%;
+            max-width: 420px;
+            height: 12px;
+            margin: 0 0 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 999px;
+            overflow: hidden;
+            display: none;
+        }
+
+        .countdown-bar.visible {
+            display: block;
+        }
+
+        .countdown-fill {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, #ffb347, #ff7a18);
+            border-radius: inherit;
+            transition: width 1s linear, background 0.2s ease;
+        }
+
+        .countdown-bar.ready .countdown-fill {
+            background: linear-gradient(90deg, #7ef0a6, #2ecf77);
+        }
+
+        .toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%) translateY(16px);
+            padding: 12px 16px;
+            border-radius: 999px;
+            background: rgba(20, 20, 20, 0.9);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            z-index: 20;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .toast.visible {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast.success {
+            background: rgba(16, 92, 52, 0.9);
+            border-color: rgba(100, 220, 150, 0.5);
+        }
+
+        .toast.warning {
+            background: rgba(110, 72, 0, 0.9);
+            border-color: rgba(255, 191, 80, 0.5);
+        }
+
+        .play-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .play-overlay.show {
+            display: flex;
+        }
+
+        #playButton {
+            padding: 12px 24px;
+            background: #6633aa;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 101;
+            display: inline-block;
+            width: auto;
+            height: auto;
+            box-shadow: 0 4px 12px rgba(102, 51, 170, 0.4);
+            transition: all 0.15s ease;
+        }
+
+        #playButton:hover {
+            background: #8a5ce6;
+            transform: scale(1.08);
+            box-shadow: 0 6px 16px rgba(102, 51, 170, 0.6);
+        }
+
+        #playButton:active {
+            transform: scale(0.96);
+            box-shadow: 0 2px 8px rgba(102, 51, 170, 0.3);
+        }
+
+        #playButton:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #playMessage {
+            color: #ccc;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        /* --------------------------------------------------
+           GRID
+        -------------------------------------------------- */
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(6, 55px);
+            grid-template-rows: repeat(10, 55px);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        #tetrisGrid {
+            display: grid;
+            grid-template-columns: repeat(6, 55px);
+            grid-template-rows: repeat(10, 55px);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        .brick {
+            width: 55px;
+            height: 55px;
+            background: #222;
+            border: 2px solid #444;
+            cursor: pointer;
+            transition: background-color 0.15s, box-shadow 0.15s;
+        }
+
+        .brick.lit {
+            box-shadow:
+                0 0 10px currentColor,
+                0 0 25px currentColor;
+        }
+
+        .brick.disabled {
+            cursor: not-allowed;
+            opacity: 0.3;
+        }
+
+        /* --------------------------------------------------
+           CONTROLS
+        -------------------------------------------------- */
+
+        #controls {
+            width: 100%;
+            max-width: 400px;
+
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tabs {
+            display: flex;
+            width: 100%;
+            max-width: 420px;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tab-button {
+            flex: 1;
+            background: #2a2a2a;
+            color: #ddd;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 10px 8px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .tab-button.active {
+            background: #6633aa;
+            color: white;
+            border-color: #8a5ce6;
+        }
+
+        .tab-panel {
+            display: none;
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .animation-panel {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .placeholder-panel {
+            padding: 30px 12px;
+            text-align: center;
+            color: #bbb;
+            border: 1px dashed #555;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tetris-panel {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .tetris-panel .control-row {
+            margin-bottom: 8px;
+        }
+
+        .tetris-next-label {
+            color: #bbb;
+            font-size: 13px;
+            text-align: center;
+            margin-bottom: 6px;
+        }
+
+        .tetris-next-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 40px);
+            grid-template-rows: repeat(4, 40px);
+            gap: 4px;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+
+        .next-cell {
+            width: 40px;
+            height: 40px;
+            background: #222;
+            border: 2px solid #444;
+            border-radius: 4px;
+        }
+
+        .next-cell.lit {
+            box-shadow:
+                0 0 8px currentColor,
+                0 0 18px currentColor;
+        }
+
+        #tetrisStartButton {
+            background: #6633aa;
+        }
+
+        #tetrisPauseButton,
+        #tetrisResetButton {
+            background: #444;
+        }
+
+        #tetrisLeftButton,
+        #tetrisRotateButton,
+        #tetrisRightButton,
+        #tetrisDropButton {
+            background: #2f6f9f;
+        }
+
+        #tetrisRotateButton {
+            flex: 1.4;
+        }
+
+        #tetrisDropButton {
+            background: #b05a22;
+        }
+
+        .tetris-score {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            color: #bbb;
+            font-size: 14px;
+        }
+
+        .tetris-score strong {
+            color: #fff;
+            font-size: 18px;
+        }
+
+        .tetris-help {
+            margin: 10px 0 0;
+            color: #888;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        button {
+            flex: 1;
+
+            padding: 12px 8px;
+
+            border: none;
+            border-radius: 6px;
+
+            color: white;
+
+            font-size: 14px;
+            font-weight: bold;
+
+            cursor: pointer;
+        }
+
+        button:hover {
+            filter: brightness(1.2);
+        }
+
+        #redButton {
+            background: #cc0000;
+        }
+
+        #greenButton {
+            background: #00aa00;
+        }
+
+        #blueButton {
+            background: #0055cc;
+        }
+
+        #eraseButton {
+            background: #333;
+        }
+
+        #colourPicker {
+            width: 50px;
+            height: 44px;
+            padding: 2px;
+            border: none;
+            border-radius: 6px;
+            flex: none;
+        }
+
+        #clearGridButton {
+            background: #333;
+        }
+
+        #fillButton {
+            background: #555;
+        }
+
+        #randomButton {
+            background: #555;
+        }
+
+        #rainbowButton {
+            background: #555;
+        }
+
+        #rainButton,
+        #scrollButton,
+        #spiralButton,
+        #pacmanButton,
+        #pumpkinButton,
+        #fireworksButton,
+        #breatheButton,
+        #matrixButton {
+            background: #6633aa;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            filter: none;
+        }
+
+        @media (max-width: 420px) {
+
+            #grid,
+            #tetrisGrid {
+                grid-template-columns: repeat(6, 1fr);
+                grid-template-rows: repeat(10, 1fr);
+                width: 100%;
+                max-width: 320px;
+                gap: 3px;
+            }
+
+            .brick {
+                width: 100%;
+                height: auto;
+                aspect-ratio: 1 / 1;
+            }
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <h1>2Glass Brick Lights</h1>
+
+    <div class="tabs" aria-label="Main navigation">
+        <button class="tab-button active" data-tab="setup">Setup</button>
+        <button class="tab-button" data-tab="animations">Animations</button>
+        <button class="tab-button" data-tab="tetris">Tetris</button>
+    </div>
+
+    <div id="status">Loading...</div>
+    <div id="turnBanner" class="turn-banner">Not your turn — wait 30s</div>
+    <div id="countdownBar" class="countdown-bar">
+        <div id="countdownFill" class="countdown-fill"></div>
+    </div>
+    <div id="timerDisplay" style="font-size: 24px; font-weight: bold; color: #ff9800; text-align: center; min-height: 30px;"></div>
+    <div id="playOverlay" class="play-overlay">
+        <button id="playButton" onclick="playTurn()">PLAY</button>
+        <p id="playMessage">Another user is playing</p>
+    </div>
+
+    <div id="tab-setup" class="tab-panel active">
+
+        <div id="grid"></div>
+
+        <div id="controls">
+
+            <div class="control-row">
+
+                <button id="redButton" onclick="selectColour('#FF0000')">Red</button>
+                <button id="greenButton" onclick="selectColour('#00FF00')">Green</button>
+                <button id="blueButton" onclick="selectColour('#0000FF')">Blue</button>
+                <button id="eraseButton" onclick="selectColour(null)">Erase</button>
+
+            </div>
+
+            <div class="control-row">
+
+                <input type="color" id="colourPicker" value="#00FFFF">
+                <button id="clearGridButton" onclick="clearGrid()">Clear</button>
+                <button id="fillButton" onclick="fillGrid()">Fill</button>
+                <button id="randomButton" onclick="randomColours()">Random</button>
+                <button id="rainbowButton" onclick="rainbow()">Rainbow</button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="tab-animations" class="tab-panel">
+
+        <div class="animation-panel">
+
+            <div class="control-row">
+                <button id="rainButton" onclick="playAnimation('rain')">Rain/Snow</button>
+                <button id="scrollButton" onclick="playAnimation('scroll')">Scroll Text</button>
+            </div>
+
+            <div class="control-row">
+                <button id="spiralButton" onclick="playAnimation('spiral')">Spiral</button>
+                <button id="pacmanButton" onclick="playAnimation('pacman')">Pac-Man</button>
+                <button id="pumpkinButton" onclick="playAnimation('pumpkin')">Laughing Pumpkin</button>
+            </div>
+
+            <div class="control-row">
+                <button id="fireworksButton" onclick="playAnimation('fireworks')">Fireworks</button>
+                <button id="breatheButton" onclick="playAnimation('breathe')">Breathe</button>
+            </div>
+
+            <div class="control-row">
+                <button id="matrixButton" onclick="playAnimation('matrix')">Matrix</button>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div id="tab-tetris" class="tab-panel">
+        <div class="tetris-panel">
+            <div class="tetris-next-label">Next</div>
+            <div id="tetrisNextGrid" class="tetris-next-grid"></div>
+            <div id="tetrisGrid"></div>
+            <div class="tetris-score">
+                <span>Score <strong id="tetrisScore">0</strong></span>
+                <span>Lines <strong id="tetrisLines">0</strong></span>
+                <span>Level <strong id="tetrisLevel">1</strong></span>
+            </div>
+            <div class="control-row">
+                <button id="tetrisStartButton" onclick="startTetris()">Start</button>
+                <button id="tetrisPauseButton" onclick="toggleTetrisPause()" disabled>Pause</button>
+                <button id="tetrisResetButton" onclick="resetTetris()" disabled>Reset</button>
+            </div>
+            <div class="control-row">
+                <button id="tetrisLeftButton" onclick="moveTetris(-1, 0)" disabled>&lt;</button>
+                <button id="tetrisRotateButton" onclick="rotateTetris()" disabled>Rotate</button>
+                <button id="tetrisRightButton" onclick="moveTetris(1, 0)" disabled>&gt;</button>
+                <button id="tetrisDropButton" onclick="hardDropTetris()" disabled>Drop</button>
+            </div>
+            <p class="tetris-help">Keyboard: arrows to move, Up to rotate, Space to drop</p>
+        </div>
+    </div>
+
+
+    <script>
+
+        const ROWS = 10;
+        const COLUMNS = 6;
+
+        // Persist session ID across page refreshes using localStorage
+        let sessionId = localStorage.getItem("glassSessionId");
+        if (!sessionId) {
+            sessionId = "sess_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
+            localStorage.setItem("glassSessionId", sessionId);
+        }
+        console.log("Session ID:", sessionId);
+
+        const gridElement = document.getElementById("grid");
+        const statusElement = document.getElementById("status");
+        const turnBanner = document.getElementById("turnBanner");
+        const countdownBar = document.getElementById("countdownBar");
+        const countdownFill = document.getElementById("countdownFill");
+        const timerDisplay = document.getElementById("timerDisplay");
+
+        const bricks = [];
+        const tetrisBricks = [];
+
+        // Assume every column is usable until /state tells us otherwise.
+        // The grid must never sit blank waiting on a network call.
+        let connected = new Array(COLUMNS).fill(true);
+        let selectedColour = "#00FFFF";
+        let turnLocked = false;
+        let turnSecondsLeft = 0;
+        let isTurnOwner = false;  // Am I the turn owner?
+        let turnDeadlineMs = 0;  // Local backstop for when the turn should end
+
+
+        // ----------------------------------------------------
+        // BUILD GRID
+        // ----------------------------------------------------
+
+        function buildGrid(container, targetBricks, clickHandler) {
+            for (let row = 0; row < ROWS; row++) {
+                targetBricks[row] = [];
+
+                for (let column = 0; column < COLUMNS; column++) {
+                    const brick = document.createElement("div");
+
+                    brick.className = "brick";
+                    brick.dataset.row = row;
+                    brick.dataset.column = column;
+
+                    if (clickHandler) {
+                        brick.addEventListener("click", function() {
+                            clickHandler(row, column);
+                        });
+                    }
+
+                    container.appendChild(brick);
+                    targetBricks[row][column] = brick;
+                }
+            }
+        }
+
+        buildGrid(gridElement, bricks, brickClicked);
+        buildGrid(document.getElementById("tetrisGrid"), tetrisBricks, null);
+
+        // Draw the grid straight away (all bricks off) so the user
+        // always sees it, even if the /state request below is slow
+        // or never comes back (captive-portal mini-browsers can be
+        // flaky about background requests fired before any tap).
+        renderGrid(grid_of_nulls(), bricks);
+        renderGrid(grid_of_nulls(), tetrisBricks);
+
+        function grid_of_nulls() {
+            return Array.from({ length: ROWS }, () => Array(COLUMNS).fill(null));
+        }
+
+        statusElement.textContent = "Connected";
+
+
+        // ----------------------------------------------------
+        // COLOUR PICKER
+        // ----------------------------------------------------
+
+        document.getElementById("colourPicker")
+            .addEventListener("input", function() {
+                selectedColour = this.value;
+            });
+
+
+        function selectColour(colour) {
+
+            selectedColour = colour;
+
+            if (colour !== null) {
+                document.getElementById("colourPicker").value = colour;
+            }
+        }
+
+
+        // ----------------------------------------------------
+        // HEX -> RGB
+        // ----------------------------------------------------
+
+        function hexToRgb(hex) {
+
+            return {
+                r: parseInt(hex.substring(1, 3), 16),
+                g: parseInt(hex.substring(3, 5), 16),
+                b: parseInt(hex.substring(5, 7), 16)
+            };
+        }
+
+
+        // ----------------------------------------------------
+        // RENDER GRID FROM SERVER STATE
+        // ----------------------------------------------------
+
+        function renderGrid(grid, targetBricks) {
+
+            targetBricks = targetBricks || bricks;
+
+            for (let row = 0; row < ROWS; row++) {
+
+                for (let column = 0; column < COLUMNS; column++) {
+
+                    const brick = targetBricks[row][column];
+                    const colour = grid[row][column];
+
+                    brick.classList.toggle(
+                        "disabled",
+                        targetBricks === bricks &&
+                        (!connected[column] || !(isTurnOwner && turnSecondsLeft > 0))
+                    );
+
+                    if (colour) {
+
+                        brick.style.backgroundColor = colour;
+                        brick.style.color = colour;
+                        brick.classList.add("lit");
+
+                    } else {
+
+                        brick.style.backgroundColor = "#222";
+                        brick.style.color = "#222";
+                        brick.classList.remove("lit");
+                    }
+                }
+            }
+        }
+
+        // Initialize play overlay as visible (user hasn't claimed turn yet)
+        let lastTurnPhase = null;
+
+        // Show play overlay initially
+        document.getElementById("playOverlay").classList.add("show");
+        
+        // Attach click listener to play button
+        const playButton = document.getElementById("playButton");
+        playButton.addEventListener("click", function(e) {
+            console.log("Play button clicked");
+            e.preventDefault();
+            e.stopPropagation();
+            playTurn();
+        });
+
+        function showToast(message, variant) {
+            const toast = document.createElement("div");
+            toast.className = "toast " + (variant || "warning");
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            requestAnimationFrame(function() {
+                toast.classList.add("visible");
+            });
+
+            setTimeout(function() {
+                toast.classList.remove("visible");
+                setTimeout(function() {
+                    toast.remove();
+                }, 250);
+            }, 1800);
+        }
+
+        function updateTurnUi(data) {
+            const locked = Boolean(data && data.turn_locked);
+            const remaining = Number(data && data.turn_seconds_left !== undefined ? data.turn_seconds_left : 0);
+            const total = Number(data && data.turn_seconds !== undefined ? data.turn_seconds : 120);
+            const isOwner = Boolean(data && data.is_owner);
+            const hasActiveTurn = isOwner && remaining > 0;
+            const turnPhase = locked ? "locked" : "ready";
+
+            console.log("updateTurnUi - locked:", locked, "remaining:", remaining, "isOwner:", isOwner);
+
+            turnLocked = locked;
+            isTurnOwner = isOwner;
+            turnSecondsLeft = Math.max(0, remaining);
+            turnDeadlineMs = isOwner ? Date.now() + turnSecondsLeft * 1000 : 0;
+
+            // Update grid if data has it
+            if (data && data.grid && !tetrisGame.running) {
+                renderGrid(data.grid);
+            }
+
+            const controls = document.querySelectorAll(
+                "#redButton, #greenButton, #blueButton, #eraseButton, #colourPicker, #clearGridButton, #fillButton, #randomButton, #rainbowButton, #rainButton, #scrollButton, #spiralButton, #pacmanButton, #pumpkinButton, #fireworksButton, #breatheButton, #matrixButton, #tetrisStartButton, #tetrisPauseButton, #tetrisResetButton, #tetrisLeftButton, #tetrisRotateButton, #tetrisRightButton, #tetrisDropButton"
+            );
+
+            // Disable if: not owner with active turn OR animation running
+            controls.forEach(function(el) {
+                el.disabled = !hasActiveTurn || animationRunning;
+            });
+
+            if (!hasActiveTurn && tetrisGame.running) {
+                endTetris("Turn ended");
+            }
+            updateTetrisButtons();
+
+            document.querySelectorAll(".brick").forEach(function(brick) {
+                brick.style.pointerEvents = hasActiveTurn ? "auto" : "none";
+            });
+
+            // Show play overlay if not owner, or if owner but no time left
+            const playOverlay = document.getElementById("playOverlay");
+            if (!hasActiveTurn) {
+                playOverlay.classList.add("show");
+                if (locked) {
+                    document.getElementById("playMessage").textContent = "Another user is playing";
+                } else {
+                    document.getElementById("playMessage").textContent = "Press PLAY to start";
+                }
+            } else {
+                playOverlay.classList.remove("show");
+            }
+
+            if (locked && isOwner) {
+                // Owner's view during lock
+                turnBanner.classList.add("visible");
+                turnBanner.classList.remove("ready");
+                turnBanner.textContent = "Your turn — " + turnSecondsLeft + "s left";
+                statusElement.textContent = connected.some(Boolean) ? "Connected" : "No LED strips connected yet";
+                countdownBar.classList.add("visible");
+                countdownBar.classList.remove("ready");
+                countdownFill.style.width = (turnSecondsLeft / total) * 100 + "%";
+            } else if (isOwner && remaining > 0) {
+                // Owner with time remaining (even if server says turn_locked: false)
+                turnBanner.classList.add("visible");
+                turnBanner.classList.remove("ready");
+                turnBanner.textContent = "Your turn — " + turnSecondsLeft + "s left";
+                statusElement.textContent = connected.some(Boolean) ? "Connected" : "No LED strips connected yet";
+                countdownBar.classList.add("visible");
+                countdownBar.classList.remove("ready");
+                countdownFill.style.width = (turnSecondsLeft / total) * 100 + "%";
+            } else if (locked && !isOwner) {
+                // Non-owner view during lock
+                turnBanner.classList.add("visible");
+                turnBanner.classList.remove("ready");
+                turnBanner.textContent = "Not your turn — wait " + turnSecondsLeft + "s";
+                statusElement.textContent = "Not your turn";
+                countdownBar.classList.add("visible");
+                countdownBar.classList.remove("ready");
+                countdownFill.style.width = (turnSecondsLeft / total) * 100 + "%";
+            } else {
+                // No lock active
+                turnBanner.classList.remove("visible");
+                statusElement.textContent = connected.some(Boolean) ? "Connected" : "No LED strips connected yet";
+                countdownBar.classList.add("visible");
+                countdownBar.classList.add("ready");
+                countdownFill.style.width = "100%";
+            }
+
+            lastTurnPhase = turnPhase;
+        }
+
+        function playTurn() {
+            console.log("playTurn called, sessionId:", sessionId);
+            const playButton = document.getElementById("playButton");
+            playButton.textContent = "...";
+            playButton.disabled = true;
+            
+            const url = addSessionId(window.location.origin + "/play");
+            console.log("Fetching:", url);
+            
+            fetch(url)
+                .then(r => {
+                    console.log("Response status:", r.status);
+                    if (!r.ok) {
+                        return r.text().then(text => {
+                            throw new Error("HTTP " + r.status + ": " + text);
+                        });
+                    }
+                    return r.json();
+                })
+                .then(data => {
+                    console.log("Response data:", data);
+                    updateTurnUi(data);
+                    if (data && data.is_owner) {
+                        showToast("You have the turn!", "success");
+                    }
+                    playButton.textContent = "PLAY";
+                    playButton.disabled = false;
+                })
+                .catch(err => {
+                    const turnIsOwnedByAnotherSession = err.message.includes("403");
+                    if (!turnIsOwnedByAnotherSession) {
+                        console.error("playTurn error:", err);
+                        statusElement.textContent = "Error: " + err.message;
+                    }
+                    playButton.textContent = "PLAY";
+                    playButton.disabled = false;
+                });
+        }
+
+        function animateCountdownBar() {
+            // Show timer if: you're the owner with time remaining, OR someone else is playing
+            const showTimer = (isTurnOwner && turnSecondsLeft > 0) || (turnLocked && turnSecondsLeft > 0);
+            
+            if (showTimer) {
+                // Display remaining seconds as text
+                const displayTime = Math.ceil(turnSecondsLeft) + "s";
+                timerDisplay.textContent = displayTime;
+                timerDisplay.style.display = "block";
+                console.log("Timer:", displayTime, "isOwner:", isTurnOwner, "turnSecondsLeft:", turnSecondsLeft);
+                
+                // Animate bar based on server value
+                const total = 30;
+                const percent = Math.max(0, (turnSecondsLeft / total) * 100);
+                countdownFill.style.width = percent + "%";
+            } else {
+                timerDisplay.style.display = "none";
+                countdownFill.style.width = "0%";
+            }
+            requestAnimationFrame(animateCountdownBar);
+        }
+
+        let pollInFlight = false;
+
+        function pollTurnState() {
+            // Never let more than one /state request be outstanding - the
+            // Pico only serves one connection at a time, so overlapping
+            // polls just pile up and starve everything else (including the
+            // Tetris sync), which is what froze the turn timer.
+            if (pollInFlight) return;
+            pollInFlight = true;
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3000);
+
+            fetch(SERVER_STATE_URL(), { signal: controller.signal })
+                .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+                .then(data => {
+                    updateTurnUi(data);
+                })
+                .catch(() => {
+                    // Ignore polling failures; the user can still keep using the page.
+                })
+                .finally(() => {
+                    clearTimeout(timeout);
+                    pollInFlight = false;
+                });
+        }
+
+
+        // ----------------------------------------------------
+        // LOAD INITIAL STATE
+        // ----------------------------------------------------
+
+        function loadState() {
+
+            // Background sync only - the grid is already visible and
+            // usable without this. Time it out so a flaky captive-portal
+            // browser can't leave a fetch hanging forever.
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3000);
+
+            fetch(SERVER_STATE_URL(), { signal: controller.signal })
+
+                .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+
+                .then(data => {
+
+                    clearTimeout(timeout);
+
+                    connected = data.connected;
+                    renderGrid(data.grid);
+
+                    const anyConnected = connected.some(Boolean);
+
+                    statusElement.textContent = anyConnected
+                        ? "Connected"
+                        : "No LED strips connected yet";
+                })
+
+                .catch(() => {
+
+                    clearTimeout(timeout);
+
+                    // Couldn't sync - grid is still fully usable, it just
+                    // won't reflect anything set by another device.
+                    statusElement.textContent = "Connected (couldn't sync saved state)";
+                });
+        }
+
+        function SERVER_STATE_URL() {
+            return window.location.origin + "/state?sid=" + sessionId;
+        }
+
+        function addSessionId(url) {
+            const sep = url.indexOf("?") >= 0 ? "&" : "?";
+            return url + sep + "sid=" + sessionId;
+        }
+
+
+        // ----------------------------------------------------
+        // BRICK CLICKED
+        // ----------------------------------------------------
+
+        function brickClicked(row, column) {
+
+            if (!connected[column] || !isTurnOwner || turnSecondsLeft <= 0) {
+                return;
+            }
+
+            const colour = selectedColour || "#000000";
+            const red = parseInt(colour.slice(1, 3), 16);
+            const green = parseInt(colour.slice(3, 5), 16);
+            const blue = parseInt(colour.slice(5, 7), 16);
+            const url = addSessionId(
+                window.location.origin + "/brick?row=" + row + "&col=" + column +
+                "&r=" + red + "&g=" + green + "&b=" + blue
+            );
+
+            fetch(url)
+                .then(response => {
+                    if (response.status === 403) {
+                        return response.json().then(data => {
+                            updateTurnUi(data);
+                            throw new Error("turn locked");
+                        });
+                    }
+                    if (!response.ok) {
+                        throw new Error("HTTP " + response.status);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    updateTurnUi(data);
+                })
+                .catch(err => {
+                    if (err.message === "turn locked") {
+                        statusElement.textContent = "Not your turn";
+                    } else {
+                        statusElement.textContent = "Connection error";
+                    }
+                });
+        }
+
+
+        // ----------------------------------------------------
+        // CLEAR / FILL / RANDOM / RAINBOW
+        // ----------------------------------------------------
+
+        function clearGrid() {
+
+            if (!isTurnOwner || turnSecondsLeft <= 0) {
+                return;
+            }
+
+            fetch(addSessionId(window.location.origin + "/clear"))
+                .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+                .then(data => {
+                    if (data && data.turn_locked) {
+                        updateTurnUi(data);
+                        return;
+                    }
+                    renderGrid(data.grid);
+                })
+                .catch(err => { statusElement.textContent = "Error: " + err.message; });
+        }
+
+        function fillGrid() {
+
+            if (!isTurnOwner || turnSecondsLeft <= 0) {
+                return;
+            }
+
+            const rgb = hexToRgb(selectedColour || "#000000");
+
+            const url = addSessionId(
+                window.location.origin +
+                "/fill?r=" + rgb.r +
+                "&g=" + rgb.g +
+                "&b=" + rgb.b
+            );
+
+            fetch(url)
+                .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+                .then(data => {
+                    if (data && data.turn_locked) {
+                        updateTurnUi(data);
+                        return;
+                    }
+                    renderGrid(data.grid);
+                })
+                .catch(err => { statusElement.textContent = "Error: " + err.message; });
+        }
+
+        function randomColours() {
+
+            if (!isTurnOwner || turnSecondsLeft <= 0) {
+                return;
+            }
+
+            fetch(addSessionId(window.location.origin + "/random"))
+                .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+                .then(data => {
+                    if (data && data.turn_locked) {
+                        updateTurnUi(data);
+                        return;
+                    }
+                    renderGrid(data.grid);
+                })
+                .catch(err => { statusElement.textContent = "Error: " + err.message; });
+        }
+
+        function rainbow() {
+
+            if (!isTurnOwner || turnSecondsLeft <= 0) {
+                return;
+            }
+
+            fetch(addSessionId(window.location.origin + "/rainbow"))
+                .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+                .then(data => {
+                    if (data && data.turn_locked) {
+                        updateTurnUi(data);
+                        return;
+                    }
+                    renderGrid(data.grid);
+                })
+                .catch(err => { statusElement.textContent = "Error: " + err.message; });
+        }
+
+
+        // ----------------------------------------------------
+        // TABS
+        // ----------------------------------------------------
+
+        function showTab(name) {
+
+            const previous = document.querySelector(".tab-panel.active");
+            const previousName = previous ? previous.id.replace("tab-", "") : null;
+
+            document.querySelectorAll(".tab-button").forEach(function(button) {
+                button.classList.toggle("active", button.dataset.tab === name);
+            });
+
+            document.querySelectorAll(".tab-panel").forEach(function(panel) {
+                panel.classList.toggle("active", panel.id === "tab-" + name);
+            });
+
+            if (name !== "tetris" && previousName === "tetris" && tetrisGame.running) {
+                leaveTetris();
+            }
+        }
+
+        document.querySelectorAll(".tab-button").forEach(function(button) {
+            button.addEventListener("click", function() {
+                showTab(button.dataset.tab);
+            });
+        });
+
+        // ----------------------------------------------------
+        // ANIMATIONS
+        // ----------------------------------------------------
+        //
+        // These take ~10 seconds on the device, so the whole
+        // control panel is disabled for the duration - otherwise
+        // a tap would just queue up behind the animation and fire
+        // unexpectedly once it's done.
+
+        let animationRunning = false;
+
+        const TETROMINOES = [
+            { colour: "#00FFFF", cells: [[0, 1], [1, 1], [2, 1], [3, 1]] },
+            { colour: "#FFFF00", cells: [[1, 0], [2, 0], [1, 1], [2, 1]] },
+            { colour: "#AA00FF", cells: [[1, 0], [0, 1], [1, 1], [2, 1]] },
+            { colour: "#00FF00", cells: [[1, 0], [2, 0], [0, 1], [1, 1]] },
+            { colour: "#FF0000", cells: [[0, 0], [1, 0], [1, 1], [2, 1]] },
+            { colour: "#0000FF", cells: [[0, 0], [0, 1], [1, 1], [2, 1]] },
+            { colour: "#FF8800", cells: [[2, 0], [0, 1], [1, 1], [2, 1]] }
+        ];
+
+        const tetrisGame = {
+            board: grid_of_nulls(),
+            piece: null,
+            nextTemplate: null,
+            running: false,
+            paused: false,
+            score: 0,
+            lines: 0,
+            timer: null,
+            syncGeneration: 0,
+            syncInFlight: false,
+            syncPending: null
+        };
+
+        // Small preview grid showing the upcoming piece - the actual game
+        // is meant to be watched on the physical glass bricks, not the phone.
+        const NEXT_COLUMNS = 3;
+        const NEXT_ROWS = 4;
+        const nextBricks = [];
+
+        (function buildNextPreview() {
+            const container = document.getElementById("tetrisNextGrid");
+            for (let row = 0; row < NEXT_ROWS; row++) {
+                nextBricks[row] = [];
+                for (let column = 0; column < NEXT_COLUMNS; column++) {
+                    const cell = document.createElement("div");
+                    cell.className = "next-cell";
+                    container.appendChild(cell);
+                    nextBricks[row][column] = cell;
+                }
+            }
+        })();
+
+        function randomTetromino() {
+            return TETROMINOES[Math.floor(Math.random() * TETROMINOES.length)];
+        }
+
+        function renderNextPreview() {
+            for (let row = 0; row < NEXT_ROWS; row++) {
+                for (let column = 0; column < NEXT_COLUMNS; column++) {
+                    const cell = nextBricks[row][column];
+                    cell.style.backgroundColor = "#222";
+                    cell.style.color = "#222";
+                    cell.classList.remove("lit");
+                }
+            }
+
+            const template = tetrisGame.nextTemplate;
+            if (!template) return;
+
+            template.cells.forEach(function(cell) {
+                const column = cell[0];
+                const row = cell[1];
+                if (row >= 0 && row < NEXT_ROWS && column >= 0 && column < NEXT_COLUMNS) {
+                    const target = nextBricks[row][column];
+                    target.style.backgroundColor = template.colour;
+                    target.style.color = template.colour;
+                    target.classList.add("lit");
+                }
+            });
+        }
+
+        function createTetrisPiece(template) {
+            return {
+                colour: template.colour,
+                cells: template.cells.map(function(cell) { return [cell[0], cell[1]]; }),
+                x: Math.floor((COLUMNS - 3) / 2),
+                y: -1
+            };
+        }
+
+        function tetrisCells(piece, cells) {
+            return (cells || piece.cells).map(function(cell) {
+                return { column: piece.x + cell[0], row: piece.y + cell[1] };
+            });
+        }
+
+        function tetrisCanPlace(piece, cells) {
+            return tetrisCells(piece, cells).every(function(cell) {
+                return cell.column >= 0 && cell.column < COLUMNS &&
+                    cell.row < ROWS && (cell.row < 0 || !tetrisGame.board[cell.row][cell.column]);
+            });
+        }
+
+        function getRotatedCells(piece) {
+            const rotated = piece.cells.map(function(cell) { return [-cell[1], cell[0]]; });
+            const minColumn = Math.min.apply(null, rotated.map(function(cell) { return cell[0]; }));
+            const minRow = Math.min.apply(null, rotated.map(function(cell) { return cell[1]; }));
+            return rotated.map(function(cell) { return [cell[0] - minColumn, cell[1] - minRow]; });
+        }
+
+        function renderTetris() {
+            const display = tetrisGame.board.map(function(row) { return row.slice(); });
+            if (tetrisGame.piece) {
+                tetrisCells(tetrisGame.piece).forEach(function(cell) {
+                    if (cell.row >= 0 && cell.row < ROWS && cell.column >= 0 && cell.column < COLUMNS) {
+                        display[cell.row][cell.column] = tetrisGame.piece.colour;
+                    }
+                });
+            }
+            renderGrid(display, tetrisBricks);
+            syncTetrisBoard(display);
+        }
+
+        // Pushes the whole board in a single /gridset request instead of one
+        // request per brick, so the physical grid keeps up with the falling
+        // piece instead of queuing up dozens of requests behind it. Only one
+        // request is ever in flight; anything newer replaces whatever was
+        // waiting to go next, and a generation counter drops stale results
+        // once the game has ended/reset.
+
+        function encodeGridForSync(board) {
+            const rows = [];
+            for (let row = 0; row < ROWS; row++) {
+                let rowData = "";
+                for (let column = 0; column < COLUMNS; column++) {
+                    const hex = (board[row][column] || "#000000").replace("#", "");
+                    rowData += hex.length === 6 ? hex : "000000";
+                }
+                rows.push(rowData);
+            }
+            return rows.join(".");
+        }
+
+        function syncTetrisBoard(board) {
+            tetrisGame.syncPending = board;
+            pumpTetrisSync();
+        }
+
+        function pumpTetrisSync() {
+            if (tetrisGame.syncInFlight || tetrisGame.syncPending === null) return;
+
+            const board = tetrisGame.syncPending;
+            tetrisGame.syncPending = null;
+            tetrisGame.syncInFlight = true;
+            const generation = tetrisGame.syncGeneration;
+
+            const url = addSessionId(window.location.origin + "/gridset?data=" + encodeGridForSync(board));
+
+            // A stuck request (dropped Wi-Fi packet, device busy, etc.) must
+            // not hang forever - that stalls every sync after it, which is
+            // what makes the bricks freeze and then suddenly catch up.
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 3000);
+
+            fetch(url, { signal: controller.signal })
+                .then(function(response) {
+                    if (!response.ok) throw new Error("HTTP " + response.status);
+                })
+                .catch(function() {
+                    if (generation === tetrisGame.syncGeneration) {
+                        statusElement.textContent = "Tetris sync failed";
+                    }
+                })
+                .finally(function() {
+                    clearTimeout(timeout);
+                    tetrisGame.syncInFlight = false;
+                    if (generation === tetrisGame.syncGeneration) pumpTetrisSync();
+                });
+        }
+
+        function cancelTetrisSync() {
+            tetrisGame.syncGeneration += 1;
+            tetrisGame.syncPending = null;
+        }
+
+        function moveTetris(columnDelta, rowDelta) {
+            if (!tetrisGame.running || tetrisGame.paused || !tetrisGame.piece) return false;
+            const candidate = Object.assign({}, tetrisGame.piece, {
+                x: tetrisGame.piece.x + columnDelta,
+                y: tetrisGame.piece.y + rowDelta
+            });
+            if (!tetrisCanPlace(candidate)) return false;
+            tetrisGame.piece = candidate;
+            renderTetris();
+            return true;
+        }
+
+        function rotateTetris() {
+            if (!tetrisGame.running || tetrisGame.paused || !tetrisGame.piece) return;
+            const candidate = Object.assign({}, tetrisGame.piece, { cells: getRotatedCells(tetrisGame.piece) });
+            if (tetrisCanPlace(candidate)) {
+                tetrisGame.piece = candidate;
+                renderTetris();
+            }
+        }
+
+        function hardDropTetris() {
+            if (!tetrisGame.running || tetrisGame.paused || !tetrisGame.piece) return;
+            while (moveTetris(0, 1)) { }
+            settleTetrisPiece();
+        }
+
+        function settleTetrisPiece() {
+            tetrisCells(tetrisGame.piece).forEach(function(cell) {
+                if (cell.row >= 0) tetrisGame.board[cell.row][cell.column] = tetrisGame.piece.colour;
+            });
+            const remainingRows = tetrisGame.board.filter(function(row) {
+                return row.some(function(cell) { return !cell; });
+            });
+            const cleared = ROWS - remainingRows.length;
+            while (remainingRows.length < ROWS) remainingRows.unshift(Array(COLUMNS).fill(null));
+            tetrisGame.board = remainingRows;
+            tetrisGame.lines += cleared;
+            tetrisGame.score += [0, 100, 300, 500, 800][cleared] || 0;
+            document.getElementById("tetrisScore").textContent = tetrisGame.score;
+            document.getElementById("tetrisLines").textContent = tetrisGame.lines;
+            document.getElementById("tetrisLevel").textContent = Math.floor(tetrisGame.lines / 10) + 1;
+            tetrisGame.piece = null;
+            renderTetris();
+            spawnTetrisPiece();
+        }
+
+        function spawnTetrisPiece() {
+            const template = tetrisGame.nextTemplate || randomTetromino();
+            tetrisGame.piece = createTetrisPiece(template);
+            tetrisGame.nextTemplate = randomTetromino();
+            renderNextPreview();
+            if (!tetrisCanPlace(tetrisGame.piece)) {
+                endTetris("Game over");
+                return;
+            }
+            renderTetris();
+        }
+
+        function tickTetris() {
+            if (turnDeadlineMs && Date.now() >= turnDeadlineMs) {
+                endTetris("Turn ended");
+                return;
+            }
+            if (!moveTetris(0, 1)) settleTetrisPiece();
+        }
+
+        function updateTetrisButtons() {
+            // Must factor in turn ownership too, or this re-enables Start
+            // for anyone once the running/paused state alone says it should.
+            const hasActiveTurn = isTurnOwner && turnSecondsLeft > 0 && !animationRunning;
+            const active = hasActiveTurn && tetrisGame.running && !tetrisGame.paused;
+            document.getElementById("tetrisStartButton").disabled = !hasActiveTurn || tetrisGame.running;
+            document.getElementById("tetrisPauseButton").disabled = !hasActiveTurn || !tetrisGame.running;
+            document.getElementById("tetrisResetButton").disabled = !hasActiveTurn || !tetrisGame.running;
+            ["tetrisLeftButton", "tetrisRotateButton", "tetrisRightButton", "tetrisDropButton"].forEach(function(id) {
+                document.getElementById(id).disabled = !active;
+            });
+            document.getElementById("tetrisPauseButton").textContent = tetrisGame.paused ? "Resume" : "Pause";
+        }
+
+        function startTetris() {
+            if (tetrisGame.running) return;
+            if (!isTurnOwner || turnSecondsLeft <= 0) {
+                statusElement.textContent = "Press PLAY to get a turn first";
+                return;
+            }
+
+            tetrisGame.board = grid_of_nulls();
+            tetrisGame.score = 0;
+            tetrisGame.lines = 0;
+            tetrisGame.running = true;
+            tetrisGame.paused = false;
+            tetrisGame.nextTemplate = randomTetromino();
+            document.getElementById("tetrisScore").textContent = "0";
+            document.getElementById("tetrisLines").textContent = "0";
+            document.getElementById("tetrisLevel").textContent = "1";
+            clearInterval(tetrisGame.timer);
+            cancelTetrisSync();
+            spawnTetrisPiece();
+            tetrisGame.timer = setInterval(tickTetris, 900);
+            updateTetrisButtons();
+        }
+
+        function toggleTetrisPause() {
+            if (!tetrisGame.running) return;
+            tetrisGame.paused = !tetrisGame.paused;
+            updateTetrisButtons();
+            renderTetris();
+        }
+
+        function resetTetris() {
+            endTetris("Tetris reset");
+            tetrisGame.board = grid_of_nulls();
+            tetrisGame.piece = null;
+            tetrisGame.nextTemplate = null;
+            renderNextPreview();
+            renderTetris();
+        }
+
+        function endTetris(message) {
+            stopTetrisLoop(message);
+            syncTetrisBoard(tetrisGame.board);
+        }
+
+        function stopTetrisLoop(message) {
+            clearInterval(tetrisGame.timer);
+            tetrisGame.timer = null;
+            tetrisGame.running = false;
+            tetrisGame.paused = false;
+            tetrisGame.piece = null;
+            cancelTetrisSync();
+            updateTetrisButtons();
+            if (message) statusElement.textContent = message;
+        }
+
+        // Leaving the Tetris tab for Setup/Animations: stop the game running
+        // in the background so it doesn't keep overwriting the shared grid.
+        function leaveTetris() {
+            if (!tetrisGame.running) return;
+
+            stopTetrisLoop("Left Tetris");
+            tetrisGame.board = grid_of_nulls();
+            tetrisGame.nextTemplate = null;
+            renderNextPreview();
+            renderGrid(grid_of_nulls(), tetrisBricks);
+            syncTetrisBoard(tetrisGame.board);
+        }
+
+        document.addEventListener("keydown", function(event) {
+            if (document.getElementById("tab-tetris").classList.contains("active") && tetrisGame.running) {
+                if (event.key === "ArrowLeft") moveTetris(-1, 0);
+                else if (event.key === "ArrowRight") moveTetris(1, 0);
+                else if (event.key === "ArrowDown") moveTetris(0, 1);
+                else if (event.key === "ArrowUp") rotateTetris();
+                else if (event.code === "Space") hardDropTetris();
+                else return;
+                event.preventDefault();
+            }
+        });
+
+        const ANIMATION_STATUS = {
+            rain: "Raining/snowing \u2026",
+            scroll: "Scrolling \u201cHi Maddie\u201d \u2026",
+            spiral: "Spiralling \u2026",
+            pacman: "Pac-Man is on the loose \u2026",
+            pumpkin: "Laughing pumpkin \u2026",
+            fireworks: "Launching fireworks \u2026",
+            breathe: "Breathing pulse \u2026",
+            matrix: "Matrix rain \u2026",
+        };
+
+        function setControlsEnabled(enabled) {
+
+            document.querySelectorAll("button:not(.tab-button), input, select").forEach(function(el) {
+                el.disabled = !enabled;
+            });
+        }
+
+        function playAnimation(name) {
+
+            if (animationRunning || !isTurnOwner || turnSecondsLeft <= 0) {
+                return;
+            }
+
+            animationRunning = true;
+            setControlsEnabled(false);
+
+            statusElement.textContent = ANIMATION_STATUS[name] || "Playing animation\u2026";
+
+            // Animations run for ~10s on the device inside a single request -
+            // guard with a generous timeout so a dropped connection can't
+            // leave animationRunning stuck true and the whole page disabled.
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 20000);
+
+            fetch(addSessionId(window.location.origin + "/anim/" + name), { signal: controller.signal })
+
+                .then(r => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+
+                .then(data => {
+                    if (data && data.turn_locked) {
+                        updateTurnUi(data);
+                        return;
+                    }
+                    if (data.grid) {
+                        renderGrid(data.grid);
+                    }
+                    statusElement.textContent = "Connected";
+                })
+
+                .catch(() => {
+                    statusElement.textContent = "Connection error";
+                })
+
+                .finally(() => {
+                    clearTimeout(timeout);
+                    animationRunning = false;
+                    setControlsEnabled(true);
+                    updateTetrisButtons();
+                });
+        }
+
+        showTab("setup");
+        loadState();
+        animateCountdownBar();
+        setInterval(pollTurnState, 1000);
+
+    </script>
+
+</body>
+
+</html>
